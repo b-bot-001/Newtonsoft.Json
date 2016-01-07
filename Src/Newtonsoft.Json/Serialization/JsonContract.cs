@@ -144,7 +144,9 @@ namespace Newtonsoft.Json.Serialization
             get
             {
                 if (_onDeserializedCallbacks == null)
+                {
                     _onDeserializedCallbacks = new List<SerializationCallback>();
+                }
 
                 return _onDeserializedCallbacks;
             }
@@ -159,7 +161,9 @@ namespace Newtonsoft.Json.Serialization
             get
             {
                 if (_onDeserializingCallbacks == null)
+                {
                     _onDeserializingCallbacks = new List<SerializationCallback>();
+                }
 
                 return _onDeserializingCallbacks;
             }
@@ -174,7 +178,9 @@ namespace Newtonsoft.Json.Serialization
             get
             {
                 if (_onSerializedCallbacks == null)
+                {
                     _onSerializedCallbacks = new List<SerializationCallback>();
+                }
 
                 return _onSerializedCallbacks;
             }
@@ -189,7 +195,9 @@ namespace Newtonsoft.Json.Serialization
             get
             {
                 if (_onSerializingCallbacks == null)
+                {
                     _onSerializingCallbacks = new List<SerializationCallback>();
+                }
 
                 return _onSerializingCallbacks;
             }
@@ -204,7 +212,9 @@ namespace Newtonsoft.Json.Serialization
             get
             {
                 if (_onErrorCallbacks == null)
+                {
                     _onErrorCallbacks = new List<SerializationErrorCallback>();
+                }
 
                 return _onErrorCallbacks;
             }
@@ -299,7 +309,7 @@ namespace Newtonsoft.Json.Serialization
 
         internal JsonContract(Type underlyingType)
         {
-            ValidationUtils.ArgumentNotNull(underlyingType, "underlyingType");
+            ValidationUtils.ArgumentNotNull(underlyingType, nameof(underlyingType));
 
             UnderlyingType = underlyingType;
 
@@ -323,6 +333,10 @@ namespace Newtonsoft.Json.Serialization
             {
                 InternalReadType = ReadType.ReadAsDecimal;
             }
+            else if (NonNullableUnderlyingType == typeof(bool))
+            {
+                InternalReadType = ReadType.ReadAsBoolean;
+            }
             else if (NonNullableUnderlyingType == typeof(string))
             {
                 InternalReadType = ReadType.ReadAsString;
@@ -337,6 +351,10 @@ namespace Newtonsoft.Json.Serialization
                 InternalReadType = ReadType.ReadAsDateTimeOffset;
             }
 #endif
+            else if (NonNullableUnderlyingType == typeof(double))
+            {
+                InternalReadType = ReadType.ReadAsDouble;
+            }
             else
             {
                 InternalReadType = ReadType.Read;

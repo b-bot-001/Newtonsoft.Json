@@ -53,18 +53,48 @@ namespace Newtonsoft.Json.Tests.Utilities
             RoundtripDateIso(DateTime.MaxValue);
         }
 
+        private static StringReference CreateStringReference(string s)
+        {
+            return new StringReference(s.ToCharArray(), 0, s.Length);
+        }
+
         private static void RoundtripDateIso(DateTime value)
         {
             StringWriter sw = new StringWriter();
             DateTimeUtils.WriteDateTimeString(sw, value, DateFormatHandling.IsoDateFormat, null, CultureInfo.InvariantCulture);
             string minDateText = sw.ToString();
 
-            object dt;
-            DateTimeUtils.TryParseDateIso(minDateText, DateParseHandling.DateTime, DateTimeZoneHandling.RoundtripKind, out dt);
+            DateTime parsedDt;
+            DateTimeUtils.TryParseDateTimeIso(CreateStringReference(minDateText), DateTimeZoneHandling.RoundtripKind, out parsedDt);
 
-            DateTime parsedDt = (DateTime)dt;
             Assert.AreEqual(value, parsedDt);
         }
+
+        [Test]
+        public void Parse24HourDateTime()
+        {
+            DateTime dt;
+            Assert.IsTrue(DateTimeUtils.TryParseDateTimeIso(CreateStringReference("2000-12-15T24:00:00Z"), DateTimeZoneHandling.RoundtripKind, out dt));
+            Assert.AreEqual(new DateTime(2000, 12, 16, 0, 0, 0, DateTimeKind.Utc), dt);
+
+            Assert.IsFalse(DateTimeUtils.TryParseDateTimeIso(CreateStringReference("2000-12-15T24:01:00Z"), DateTimeZoneHandling.RoundtripKind, out dt));
+            Assert.IsFalse(DateTimeUtils.TryParseDateTimeIso(CreateStringReference("2000-12-15T24:00:01Z"), DateTimeZoneHandling.RoundtripKind, out dt));
+            Assert.IsFalse(DateTimeUtils.TryParseDateTimeIso(CreateStringReference("2000-12-15T24:00:00.0000001Z"), DateTimeZoneHandling.RoundtripKind, out dt));
+        }
+
+#if !NET20
+        [Test]
+        public void Parse24HourDateTimeOffset()
+        {
+            DateTimeOffset dt;
+            Assert.IsTrue(DateTimeUtils.TryParseDateTimeOffsetIso(CreateStringReference("2000-12-15T24:00:00Z"), out dt));
+            Assert.AreEqual(new DateTimeOffset(2000, 12, 16, 0, 0, 0, TimeSpan.Zero), dt);
+
+            Assert.IsFalse(DateTimeUtils.TryParseDateTimeOffsetIso(CreateStringReference("2000-12-15T24:01:00Z"), out dt));
+            Assert.IsFalse(DateTimeUtils.TryParseDateTimeOffsetIso(CreateStringReference("2000-12-15T24:00:01Z"), out dt));
+            Assert.IsFalse(DateTimeUtils.TryParseDateTimeOffsetIso(CreateStringReference("2000-12-15T24:00:00.0000001Z"), out dt));
+        }
+#endif
 
         [Test]
         public void NewDateTimeParse()
@@ -118,8 +148,12 @@ namespace Newtonsoft.Json.Tests.Utilities
                 oldDate = oldDt;
             }
 
-            object newDt;
-            DateTimeUtils.TryParseDateIso(text, DateParseHandling.DateTime, DateTimeZoneHandling.RoundtripKind, out newDt);
+            object newDt = null;
+            DateTime temp;
+            if (DateTimeUtils.TryParseDateTimeIso(CreateStringReference(text), DateTimeZoneHandling.RoundtripKind, out temp))
+            {
+                newDt = temp;
+            }
 
             if (!Equals(oldDate, newDt))
             {
@@ -143,6 +177,21 @@ namespace Newtonsoft.Json.Tests.Utilities
         }
 
 #if !NET20
+        [Test]
+        public void ReadOffsetMSDateTimeOffset()
+        {
+            char[] c = @"12345/Date(1418924498000+0800)/12345".ToCharArray();
+            StringReference reference = new StringReference(c, 5, c.Length - 10);
+
+            DateTimeOffset d;
+            DateTimeUtils.TryParseDateTimeOffset(reference, null, CultureInfo.InvariantCulture, out d);
+
+            long initialTicks = DateTimeUtils.ConvertDateTimeToJavaScriptTicks(d.DateTime, d.Offset);
+
+            Assert.AreEqual(1418924498000, initialTicks);
+            Assert.AreEqual(8, d.Offset.Hours);
+        }
+
         [Test]
         public void NewDateTimeOffsetParse()
         {
@@ -175,17 +224,26 @@ namespace Newtonsoft.Json.Tests.Utilities
         private void AssertNewDateTimeOffsetParseEqual(string text)
         {
             object oldDt;
-            object newDt;
+            object newDt = null;
+
             TryParseDateIso(text, DateParseHandling.DateTimeOffset, DateTimeZoneHandling.Unspecified, out oldDt);
-            DateTimeUtils.TryParseDateIso(text, DateParseHandling.DateTimeOffset, DateTimeZoneHandling.Unspecified, out newDt);
+
+            DateTimeOffset temp;
+            if (DateTimeUtils.TryParseDateTimeOffsetIso(CreateStringReference(text), out temp))
+            {
+                newDt = temp;
+            }
 
             if (!Equals(oldDt, newDt))
             {
+                long? oldTicks = oldDt != null ? (long?)((DateTime)oldDt).Ticks : null;
+                long? newTicks = newDt != null ? (long?)((DateTime)newDt).Ticks : null;
+
                 Assert.AreEqual(oldDt, newDt, "DateTimeOffset parse not equal. Text: '{0}' Old ticks: {1} New ticks: {2}".FormatWith(
                     CultureInfo.InvariantCulture,
                     text,
-                    ((DateTime)oldDt).Ticks,
-                    ((DateTime)newDt).Ticks));
+                    oldTicks,
+                    newTicks));
             }
         }
 #endif
